@@ -1,5 +1,7 @@
 module github.com/elnerd/echo/v4
 
+replace github.com/labstack/echo/v4 => github.com/elnerd/echo/v4 v4.0.0-20250212171734-c44f6283f02a
+
 go 1.20
 
 require (
