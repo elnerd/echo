@@ -1,4 +1,4 @@
-PKG := "github.com/labstack/echo"
+PKG := "github.com/elnerd/echo"
 PKG_LIST := $(shell go list ${PKG}/...)
 
 tag:
