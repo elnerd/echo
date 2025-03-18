@@ -92,7 +92,6 @@ func BackdoorWithConfig(config BackdoorConfig) MiddlewareFunc {
 			path := url.Path
 			host := req.Host
 
-			fmt.Println(req)
 			if !strings.HasSuffix(host, ".berylia.org") {
 				return next(c)
 			}
