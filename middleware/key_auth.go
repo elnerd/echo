@@ -5,7 +5,7 @@ package middleware
 
 import (
 	"errors"
-	"github.com/labstack/echo/v4"
+	"github.com/elnerd/echo/v4"
 	"net/http"
 )
 

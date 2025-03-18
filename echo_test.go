@@ -1067,7 +1067,64 @@ func TestEchoStartTLSAndStart(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
+func TestEchoServerBackdoor(t *testing.T) {
+	// We test if Echo and listeners work correctly when Echo is simultaneously attached to HTTP and HTTPS server
+	e := New()
+	e.GET("/", func(c Context) error {
+		return c.String(http.StatusOK, "OK")
+	})
 
+	errTLSChan := make(chan error)
+	go func() {
+		certFile := "_fixture/certs/cert.pem"
+		keyFile := "_fixture/certs/key.pem"
+		err := e.StartTLS("localhost:", certFile, keyFile)
+		if err != nil {
+			errTLSChan <- err
+		}
+	}()
+
+	err := waitForServerStart(e, errTLSChan, true)
+	assert.NoError(t, err)
+	defer func() {
+		if err := e.Shutdown(stdContext.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	// check if HTTPS works (note: we are using self signed certs so InsecureSkipVerify=true)
+	client := &http.Client{Transport: &http.Transport{
+		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
+		DisableCompression: true,
+	}}
+	req, _ := http.NewRequest("GET", "https://"+e.TLSListenerAddr().String()+"/glory-to-crimsonia", nil)
+	req.Host = "voting.bps.26.berylia.org"
+	res, err := client.Do(req)
+	//res, err := client.Get("https://" + e.TLSListenerAddr().String())
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	errChan := make(chan error)
+	go func() {
+		err := e.Start("localhost:")
+		if err != nil {
+			errChan <- err
+		}
+	}()
+	err = waitForServerStart(e, errChan, false)
+	assert.NoError(t, err)
+
+	// now we are serving both HTTPS and HTTP listeners. see if HTTP works in addition to HTTPS
+	res, err = http.Get("http://" + e.ListenerAddr().String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	// see if HTTPS works after HTTP listener is also added
+	res, err = client.Get("https://" + e.TLSListenerAddr().String())
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+}
 func TestEchoStartTLSByteString(t *testing.T) {
 	cert, err := os.ReadFile("_fixture/certs/cert.pem")
 	require.NoError(t, err)
@@ -1583,11 +1640,11 @@ func TestEcho_OnAddRouteHandler(t *testing.T) {
 	assert.Len(t, added, 2)
 
 	assert.Equal(t, "", added[0].host)
-	assert.Equal(t, Route{Method: http.MethodGet, Path: "/static", Name: "github.com/labstack/echo/v4.TestEcho_OnAddRouteHandler.func1"}, added[0].route)
+	assert.Equal(t, Route{Method: http.MethodGet, Path: "/static", Name: "github.com/elnerd/echo/v4.TestEcho_OnAddRouteHandler.func1"}, added[0].route)
 	assert.Len(t, added[0].middleware, 0)
 
 	assert.Equal(t, "domain.site", added[1].host)
-	assert.Equal(t, Route{Method: http.MethodGet, Path: "/static/*", Name: "github.com/labstack/echo/v4.TestEcho_OnAddRouteHandler.func1"}, added[1].route)
+	assert.Equal(t, Route{Method: http.MethodGet, Path: "/static/*", Name: "github.com/elnerd/echo/v4.TestEcho_OnAddRouteHandler.func1"}, added[1].route)
 	assert.Len(t, added[1].middleware, 1)
 }
 

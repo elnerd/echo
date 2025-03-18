@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/elnerd/echo/v4"
 )
 
 // CSRFConfig defines the config for CSRF middleware.

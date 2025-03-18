@@ -1,4 +1,4 @@
-module github.com/labstack/echo/v4
+module github.com/elnerd/echo/v4
 
 go 1.20
 

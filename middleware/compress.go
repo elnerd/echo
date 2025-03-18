@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/elnerd/echo/v4"
 )
 
 // GzipConfig defines the config for Gzip middleware.

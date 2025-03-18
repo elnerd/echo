@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/labstack/echo/v4"
+	"github.com/elnerd/echo/v4"
 )
 
 // DecompressConfig defines the config for Decompress middleware.
